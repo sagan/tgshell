@@ -1,0 +1,16 @@
+telegramtoken: ""
+shellexecutor: "" # By default, use "cmd" on windows, use "$SHELL" on other platforms
+shellexecutorbuttons: [] # shortcut buttons of shell executor
+whitelist:
+  - 0
+#secret: ""
+#services:
+#  - name: test
+#    backend: http://127.0.0.1:7380
+#    hostname: test.example.com
+#    headers:
+#      - ["Authorization", "Basic YWxhZGRpbjpvcGVuc2VzYW1l"]
+#serviceport = 8085
+#servicesaddr = 0.0.0.0
+#serviceshttps: false
+#servicespublicport: 0 # By default, use the same as serviceport
