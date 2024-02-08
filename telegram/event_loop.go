@@ -110,7 +110,7 @@ main:
 						tgcmd.Output <- MSG_INVALID
 					} else {
 						no := 0
-						data := fmt.Sprintf("Files: %s\nPrefix: %s\n%s\n\n", cwd, prefix, FILES_TIP)
+						data := fmt.Sprintf("Files - %s\nPrefix: %s\n%s\n\n", cwd, prefix, FILES_TIP)
 						chars := utf8.RuneCountInString(data)
 						var inlineKeyboard [][]tele.InlineButton
 						var inlineKeyboardRow []tele.InlineButton
@@ -209,6 +209,31 @@ main:
 					menu := &tele.ReplyMarkup{InlineKeyboard: inlineKeyboard}
 					tgcmd.C.Reply(data, menu, tele.NoPreview)
 				}
+			case "/cmds":
+				{
+					close(tgcmd.Output)
+					cmds := config.ConfigData.Cmds
+					data := fmt.Sprintf("Commands (%d) - custom\n%s\n\n", len(cmds), CMDS_TIP)
+					var inlineKeyboard [][]tele.InlineButton
+					var inlineKeyboardRow []tele.InlineButton
+					for i, cmd := range cmds {
+						data += fmt.Sprintf("%d  %s  %s\n", i, cmd.Name, cmd.Cmd)
+						inlineKeyboardRow = append(inlineKeyboardRow, tele.InlineButton{
+							Text: fmt.Sprintf("Del %d", i),
+							Data: fmt.Sprintf("del_%s", cmd.Name),
+						})
+						if len(inlineKeyboardRow) >= constants.TG_ROW_BUTTONS {
+							inlineKeyboard = append(inlineKeyboard, inlineKeyboardRow)
+							inlineKeyboardRow = nil
+						}
+					}
+					if len(inlineKeyboardRow) > 0 {
+						inlineKeyboard = append(inlineKeyboard, inlineKeyboardRow)
+						inlineKeyboardRow = nil
+					}
+					menu := &tele.ReplyMarkup{InlineKeyboard: inlineKeyboard}
+					tgcmd.C.Reply(data, menu, tele.NoPreview)
+				}
 			case "/history":
 				{
 					close(tgcmd.Output)
@@ -284,6 +309,11 @@ main:
 								tgcmd.Output <- result
 							}
 						}
+					} else if strings.HasPrefix(msg.Text, "Commands ") {
+						if err := config.DelCmd(index); err == nil {
+							setCommands(bot, tgcmd.Chatid)
+						}
+						result = fmt.Sprintf("Del cmd '%s'", index)
 					} else if strings.HasPrefix(msg.Text, "Executors ") {
 						if action == "del" {
 							if err := config.DelExecutor(index); err == nil {
@@ -291,9 +321,10 @@ main:
 								setCommands(bot, tgcmd.Chatid)
 							}
 						}
-					} else if strings.HasPrefix(msg.Text, "Files: ") {
+					} else if strings.HasPrefix(msg.Text, "Files ") {
 						lines := strings.Split(msg.Text, "\n")
-						dir := lines[0][7:]
+						// first line: "Files - <filename>"
+						dir := lines[0][8:]
 						log.Printf("dir=%s, action=%s, index=%s", dir, action, index)
 						if index == "." || index == ".." {
 							if action == "cd" {

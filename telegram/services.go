@@ -60,7 +60,9 @@ func (sp *ServicesProxy) GetUrl(service string) (string, error) {
 }
 
 func (sp *ServicesProxy) handleAuthFunc(w http.ResponseWriter, r *http.Request) {
-	if hostname := strings.Split(r.Host, ":")[0]; sp.backends[hostname] == nil {
+	if hostname := strings.Split(r.Host, ":")[0]; hostname == "" {
+		http.NotFound(w, r)
+	} else if service := sp.backends[hostname]; service == nil {
 		http.NotFound(w, r)
 	} else if cookie, err := r.Cookie(constants.SERVICE_COOKIE_NAME); err == nil &&
 		sp.verifyToken(cookie.Value, hostname) == nil {
@@ -75,6 +77,15 @@ func (sp *ServicesProxy) handleAuthFunc(w http.ResponseWriter, r *http.Request) 
 	} else if token, err := sp.newToken(hostname, constants.SERVICE_COOKIE_MAXAGE); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create permanent token: %v", err), http.StatusInternalServerError)
 	} else {
+		redirectPath := ""
+		if service.backend.Path != "" {
+			redirectPath = service.backend.Path
+			if service.backend.RawQuery != "" {
+				redirectPath += "?" + service.backend.RawQuery
+			}
+		} else {
+			redirectPath = "/"
+		}
 		http.SetCookie(w, &http.Cookie{
 			Name:     constants.SERVICE_COOKIE_NAME,
 			Path:     "/",
@@ -82,7 +93,7 @@ func (sp *ServicesProxy) handleAuthFunc(w http.ResponseWriter, r *http.Request) 
 			MaxAge:   constants.SERVICE_COOKIE_MAXAGE,
 			HttpOnly: true,
 		})
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, redirectPath, http.StatusFound)
 	}
 }
 

@@ -100,7 +100,7 @@ func setCommands(bot *tele.Bot, chatid int64) error {
 	}
 	for _, internalExecutor := range config.InternalExecutors {
 		tgcommands = append(tgcommands, tele.Command{Text: "/executor_" + internalExecutor.Name,
-			Description: fmt.Sprintf("Executor %s (%s)", internalExecutor.Name, internalExecutor.Desc())})
+			Description: fmt.Sprintf("Executor %s", internalExecutor.Name)})
 	}
 	for _, executor := range config.ConfigData.Executors {
 		tgcommands = append(tgcommands, tele.Command{Text: "/executor_" + executor.Name,
@@ -112,13 +112,12 @@ func setCommands(bot *tele.Bot, chatid int64) error {
 		}
 		tgcommands = append(tgcommands, tele.Command{Text: command[0], Description: command[1]})
 	}
-	// see https://stackoverflow.com/questions/66053613/updating-telegram-bot-commands-in-realtime
-	if chatid > 0 {
-		return bot.SetCommands(tgcommands, tele.CommandScope{
-			Type:   "chat",
-			ChatID: chatid,
-		})
-	} else {
-		return bot.SetCommands(tgcommands)
+	if chatid == 0 {
+		return fmt.Errorf("chatid must be set to set commands")
 	}
+	// see https://stackoverflow.com/questions/66053613/updating-telegram-bot-commands-in-realtime
+	return bot.SetCommands(tgcommands, tele.CommandScope{
+		Type:   "chat",
+		ChatID: chatid,
+	})
 }

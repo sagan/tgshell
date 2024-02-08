@@ -53,8 +53,8 @@ var commands = [][4]string{
 	{"close", "Close (active) executor", "Usage: /close [name]", "1"},
 	{"executor", "Display or use executor(s)", "Usage: /executor [name]", "1"},
 	{"run", "Run cmdline in active executor", USAGE_RUN, "0"},
-	{"addcmd", "Add a custom cmd", USAGE_ADDCMD, "0"},
-	{"delcmd", "Delete a custom cmd", USAGE_DELCMD, "0"},
+	{"addcmd", "Add a custom command", USAGE_ADDCMD, "0"},
+	{"delcmd", "Delete a custom command", USAGE_DELCMD, "0"},
 	{"addexecutor", "Add a executor", USAGE_ADDEXECUTOR, "0"},
 	{"delexecutor", "Delete a executor", USAGE_DELEXECUTOR, "0"},
 	{"setsecret", "Set the secret of a executor", USAGE_SETSECRET, "0"},
@@ -67,8 +67,9 @@ var commands = [][4]string{
 	{"raw", "Send raw input", USAGE_RAW, "0"},
 	{"pwd", "Get current working directory", "", "0"},
 	{"cd", "Change current working directory", USAGE_CD, "0"},
-	{"buttons", "Manage buttons", "", "0"},
 	{"executors", "Manage executors", "", "0"},
+	{"cmds", "Manage custom commands", "", "0"},
+	{"buttons", "Manage buttons", "", "0"},
 	{"history", "Manage cmdline history", "", "0"},
 	{"files", "Manage files in cwd of server", "Usage: /files [prefix]", "0"},
 	{"services", "Access services", "", "0"},
@@ -181,9 +182,6 @@ func Start(ctx context.Context) {
 		return runCommand(ctx, c, commander, messenger, command, payload)
 	})
 
-	if err := setCommands(bot, 0); err != nil {
-		log.Printf("Failed to set commands: %v", err)
-	}
 	log.Printf("bot is now running")
 	go event_loop(ctx, bot, servicesProxy, activeSessions, executorSessions, commander, messenger)
 	bot.Start()

@@ -33,6 +33,9 @@ const BUTTONS_TIP = `- Click 'Del' to delete
 - It works in active executor
 - To add from history, send /history`
 
+const CMDS_TIP = `- Click 'Del' to delete
+- To add new, use /addcmd`
+
 const FILES_TIP = `- Click '↓' to get
 - To narrow, use /files <prefix>`
 
@@ -43,5 +46,5 @@ const EXECUTORS_TIP = `- Click 'Del' to delete
 const SERVICES_TIP = `- Click link to open in browser
 - Links are valid for 15 minutes
 - To refresh, send /services
-- To add new, edit config.yaml
+- To manage, edit config.yaml
 - To revoke, send /resetsecret`
