@@ -246,6 +246,24 @@ func AddCmd(cmd *ConfigCmdStruct) error {
 	return viper.WriteConfig()
 }
 
+// Reload config from config file
+func Reload() error {
+	if ConfigPath == "" {
+		return fmt.Errorf("ConfigPath can not be empty")
+	}
+	log.Printf("Reload config from %s", ConfigPath)
+	if err := viper.ReadInConfig(); err != nil {
+		return fmt.Errorf("failed to read config: %v", err)
+	}
+	if err := viper.Unmarshal(&ConfigData); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %v", err)
+	}
+	ConfigData.sideeffect()
+	DefaultExecutorConfig.Buttons = ConfigData.ShellExecutorButtons
+	PtyExecutorConfig.Buttons = ConfigData.ShellExecutorButtons
+	return nil
+}
+
 func AddExecutor(executor *ConfigExecutorStruct) error {
 	if GetExecutor(executor.Name) != nil {
 		return fmt.Errorf("'%s' executor already exists", executor.Name)

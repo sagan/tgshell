@@ -19,6 +19,7 @@ import (
 	"github.com/sagan/tgshell/constants"
 	"github.com/sagan/tgshell/executor"
 	"github.com/sagan/tgshell/util"
+	"github.com/sagan/tgshell/version"
 )
 
 const TYPE_GLOBAL = "global"
@@ -429,7 +430,11 @@ main:
 				}
 			case "/help":
 				{
-					msg := "tgshell is a telegram bot program which works as a terminal emulator and ssh client.\n\n"
+					msg := "tgshell is a telegram bot program which works as a terminal emulator and ssh client.\n"
+					msg += "Version: " + version.Version + "\n"
+					msg += "Commit: " + version.Commit + "\n"
+					msg += "Built at: " + version.Date + "\n\n"
+
 					msg += "Available commands:\n\n"
 					for _, command := range commands {
 						msg += fmt.Sprintf("/%s: %s\n", command[0], command[1])
@@ -501,6 +506,16 @@ main:
 						}
 					}
 					clear(activeSessions)
+					close(tgcmd.Output)
+				}
+			case "/reload":
+				{
+					if err := config.Reload(); err != nil {
+						tgcmd.Output <- fmt.Sprintf("Failed to reload config: %v", err)
+					} else {
+						setCommands(bot, tgcmd.Chatid)
+						tgcmd.Output <- MSG_SUCCESS
+					}
 					close(tgcmd.Output)
 				}
 			case "/addexecutor":

@@ -9,6 +9,7 @@ const HELP_TEXT = `Other messages sent to bot:
 - Send a file: save the file to cwd (Use caption to change savepath)
 - ^<char> : Send a control key stroke. <char> is a single char. E.g.: ^C (Ctrl-C), ^Z (Ctrl-Z)
 - <cmdline> : Any other text message sent to bot is treated as cmdline and executed by active executor
+- /reload : Reload all config data from config file
 
 Topics:
 

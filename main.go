@@ -12,12 +12,7 @@ import (
 	"github.com/sagan/tgshell/config"
 	_ "github.com/sagan/tgshell/executor/all"
 	"github.com/sagan/tgshell/telegram"
-)
-
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	"github.com/sagan/tgshell/version"
 )
 
 func init() {
@@ -30,7 +25,7 @@ func init() {
 }
 
 func main() {
-	fmt.Printf("tgshell %s, commit %s, built at %s\n", version, commit, date)
+	fmt.Printf("tgshell version %s, commit %s, built at %s\n", version.Version, version.Commit, version.Date)
 	flag.Parse()
 	log.Printf("configPath: %s", config.ConfigPath)
 	if err := config.InitConfig(); err != nil {

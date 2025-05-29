@@ -74,6 +74,7 @@ var commands = [][4]string{
 	{"files", "Manage files in cwd of server", "Usage: /files [prefix]", "0"},
 	{"services", "Access services", "", "0"},
 	{"closeall", "Close all opened executors", "", "0"},
+	{"reload", "Reload config data", "", "0"},
 	{"help", "Show help", "", "0"},
 	{"start", "Welcome", "", "2"},
 }
