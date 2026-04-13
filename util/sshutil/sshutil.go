@@ -1,6 +1,7 @@
 package sshutil
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -91,7 +92,7 @@ func CreateSshClient(c *sshlib.Connect, host, port, user, pass string, identityF
 		c.ProxyDialer = proxy.Direct
 	}
 	// Dial to host:port
-	netConn, err := c.ProxyDialer.Dial("tcp", uri)
+	netConn, err := c.ProxyDialer.DialContext(context.TODO(), "tcp", uri)
 	if err != nil {
 		return
 	}
