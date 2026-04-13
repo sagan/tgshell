@@ -186,6 +186,9 @@ func NewExecutor(executorConfig *config.ConfigExecutorStruct, extraOption string
 				executorArgs = append(executorArgs, "/C")
 			}
 		} else {
+			if slices.Index(executorArgs, "-l") == -1 {
+				executorArgs = append(executorArgs, "-l") // login shell
+			}
 			if slices.Index(executorArgs, "-c") == -1 {
 				executorArgs = append(executorArgs, "-c")
 			}

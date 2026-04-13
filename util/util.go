@@ -158,7 +158,7 @@ func Cd(dir string) (cwd string, err error) {
 		if runtime.GOOS == "windows" {
 			cwd, err = RunCommand("cmd", "/C", fmt.Sprintf("cd %s && cd", dir))
 		} else {
-			cwd, err = RunCommand("sh", "-c", fmt.Sprintf("cd %s; pwd", dir))
+			cwd, err = RunCommand("sh", "-l", "-c", fmt.Sprintf("cd %s; pwd", dir))
 		}
 		cwd = strings.TrimSpace(cwd)
 	}
