@@ -6,14 +6,15 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
-	"runtime"
+	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/acarl005/stripansi"
-	"github.com/creack/pty"
+	// "github.com/creack/pty"
+	"github.com/aymanbagabas/go-pty"
 	"github.com/google/shlex"
 	"github.com/jessevdk/go-flags"
 
@@ -33,8 +34,43 @@ E.g.:
 /addexecutor ps shell powershell
 /addexecutor python shell python3`
 
-var known_shells = []string{"cmd", "cmd.exe", "powershell", "powershell.exe",
-	"bash", "sh", "ash", "fish", "ksh", "tcsh", "zsh", "dash"}
+var (
+	DefaultShell string // Default system shell full path, e.g. "/bin/bash"
+)
+
+func init() {
+	DefaultShell = (func() string {
+		// Try to use user's default shell
+		if shell := os.Getenv("SHELL"); shell != "" {
+			if path, err := exec.LookPath(shell); err == nil {
+				return path
+			}
+		}
+
+		var shells []string
+		// try common shells
+		if os.PathSeparator == '\\' {
+			shells = []string{"pwsh", "powershell"}
+		} else {
+			shells = []string{"zsh", "bash", "sh"}
+		}
+		for _, shell := range shells {
+			if path, err := exec.LookPath(shell); err == nil {
+				return path
+			}
+		}
+		return "sh"
+	})()
+}
+
+// standard shells. support -l, -c
+var known_shells = []string{"pwsh", "pwsh.exe", "bash", "sh", "ash", "fish", "ksh", "tcsh", "zsh", "dash"}
+
+// legacy Windows cmd: cmd /c "cmdline";
+var cmd_shells = []string{"cmd", "cmd.exe"}
+
+// legacy Windows powershell: powershell -Command "cmdline";
+var powershell_shells = []string{"powershell", "powershell.exe"}
 
 // These interpreters are not shell, but also have an (default) interactive (REPL) mode,
 // and have a "-c" flag to accept first arg as cmdline
@@ -63,7 +99,9 @@ type Shell struct {
 	isShell        bool // if isShell, add some common buttons like "cd", "pwd"
 	output         chan string
 	pty            bool
-	ptmx           *os.File
+	ptyInstance    pty.Pty
+	ptyClosed      atomic.Bool
+	ptyCmd         *pty.Cmd
 	options        *optionsStruct
 }
 
@@ -116,21 +154,37 @@ func (s *Shell) Chan() <-chan string {
 func (s *Shell) Open() error {
 	if s.pty {
 		var err error
-		c := exec.Command(s.executor, s.executorArgs...)
-		if s.ptmx, err = pty.Start(c); err != nil {
+		pty, err := pty.New()
+		if err != nil {
 			close(s.output)
 			return fmt.Errorf("failed to create pty: %v", err)
 		}
-		if err = pty.Setsize(s.ptmx, &pty.Winsize{Rows: constants.PTY_H, Cols: constants.PTY_W}); err != nil {
+		cmd := pty.Command(s.executor, s.executorArgs...)
+		if err = cmd.Start(); err != nil {
 			close(s.output)
+			pty.Close()
+			return fmt.Errorf("failed to create pty: %v", err)
+		}
+		if err = pty.Resize(constants.PTY_W, constants.PTY_H); err != nil {
+			close(s.output)
+			pty.Close()
 			return fmt.Errorf("failed to set pty size: %v", err)
 		}
+		s.ptyInstance = pty
+		s.ptyCmd = cmd
 		go func() {
-			defer close(s.output)
-			defer s.ptmx.Close()
+			defer func() {
+				close(s.output)
+				if ok := s.ptyClosed.CompareAndSwap(false, true); ok {
+					s.ptyInstance.Close()
+					if cmd.Process != nil {
+						cmd.Process.Kill()
+					}
+				}
+			}()
 			buf := make([]byte, 10240)
 			for {
-				i, err := s.ptmx.Read(buf)
+				i, err := s.ptyInstance.Read(buf)
 				if err != nil {
 					break
 				}
@@ -163,32 +217,25 @@ func NewExecutor(executorConfig *config.ConfigExecutorStruct, extraOption string
 	if len(executorArgs) > 0 {
 		executor, executorArgs = executorArgs[0], executorArgs[1:]
 	} else {
-		if runtime.GOOS == "windows" {
-			executor = "cmd"
-		} else {
-			executor = os.Getenv("SHELL")
-			if executor == "" {
-				executor = "/bin/bash"
-			}
+		executor = DefaultShell
+	}
+	executorBase := filepath.Base(executor)
+	isKnownShell := slices.Contains(known_shells, executorBase)
+	if isKnownShell {
+		if slices.Index(executorArgs, "-l") == -1 {
+			executorArgs = append(executorArgs, "-l") // login shell
 		}
 	}
-	isKnownShell := false
-	isKnownInterpreter := false
-	if slices.Index(known_shells, path.Base(executor)) != -1 {
-		isKnownShell = true
-	} else if slices.Index(known_interpreters, path.Base(executor)) != -1 {
-		isKnownInterpreter = true
-	}
-	if (isKnownShell || isKnownInterpreter) && options.Oneshot {
-		// Known problem: it may NOT work for bash on Windows, or, powershell on Linux
-		if isKnownShell && runtime.GOOS == "windows" {
+	if options.Oneshot {
+		if slices.Contains(cmd_shells, executorBase) {
 			if slices.Index(executorArgs, "/C") == -1 {
 				executorArgs = append(executorArgs, "/C")
 			}
-		} else {
-			if slices.Index(executorArgs, "-l") == -1 {
-				executorArgs = append(executorArgs, "-l") // login shell
+		} else if slices.Contains(powershell_shells, executorBase) {
+			if slices.Index(executorArgs, "-Command") == -1 {
+				executorArgs = append(executorArgs, "-Command")
 			}
+		} else if isKnownShell || slices.Contains(known_interpreters, executorBase) {
 			if slices.Index(executorArgs, "-c") == -1 {
 				executorArgs = append(executorArgs, "-c")
 			}
@@ -231,7 +278,7 @@ func (s *Shell) Exec(ctx context.Context, cmdline string, isRaw bool) (output ch
 
 func (s *Shell) exec(ctx context.Context, cmdline string, outputMeta bool) (output chan string) {
 	if s.pty {
-		s.ptmx.Write([]byte(cmdline))
+		s.ptyInstance.Write([]byte(cmdline))
 		return
 	}
 	cmdline = strings.TrimSpace(cmdline)
@@ -288,19 +335,20 @@ func (s *Shell) exec(ctx context.Context, cmdline string, outputMeta bool) (outp
 	return
 }
 
-func (s *Shell) runBuiltin(ctx context.Context, cmdline string) (output string, handled bool) {
+func (s *Shell) runBuiltin(_ context.Context, cmdline string) (output string, handled bool) {
 	if i := strings.Index(cmdline, ";"); i != -1 && i < len(cmdline)-1 {
 		return
 	}
 	builtinName, builtinParameters := util.SplitFirstAndOthers(cmdline)
-	if builtinName == "cd" {
+	switch builtinName {
+	case "cd":
 		if cwd, err := util.Cd(builtinParameters); err == nil {
 			output = fmt.Sprintf("cd %s", cwd)
 		} else {
 			output = fmt.Sprintf("Failed to cd %s: %v", builtinParameters, err)
 		}
 		handled = true
-	} else if builtinName == "pwd" {
+	case "pwd":
 		output, _ = os.Getwd()
 		handled = true
 	}
@@ -328,7 +376,12 @@ cancel:
 
 func (s *Shell) Close() {
 	if s.pty {
-		s.ptmx.Close()
+		if ok := s.ptyClosed.CompareAndSwap(false, true); ok {
+			s.ptyInstance.Close()
+			if s.ptyCmd.Process != nil {
+				s.ptyCmd.Process.Kill()
+			}
+		}
 	}
 }
 

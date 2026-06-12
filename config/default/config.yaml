@@ -1,5 +1,5 @@
 telegramtoken: ""
-shellexecutor: "" # By default, use "cmd" on windows, use "$SHELL" on other platforms
+shellexecutor: "" # By default, use "pwsh" or "powershell" on windows, use "$SHELL" on other platforms
 shellexecutorbuttons: [] # shortcut buttons of shell executor
 whitelist:
   - 0

@@ -44,7 +44,7 @@ type ConfigServiceStruct struct {
 }
 
 type ConfigStruct struct {
-	ShellExecutor        string // by default, use "cmd /C" on windows, "/bin/bash -c" on other platforms.
+	ShellExecutor        string // by default, use "pwsh -c" or "powershell /Command" on windows, "/bin/bash -c" on other platforms.
 	ShellExecutorButtons []string
 	TelegramToken        string // tg bot token
 	Cmds                 []*ConfigCmdStruct
